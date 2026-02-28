@@ -1,152 +1,79 @@
-## CricStatz 📱🏏
+# CricStatz
 
-**CricStatz** is a mobile app (built with Flutter) to make it easy for cricket lovers to **store, track, and view cricket stats** for their matches with friends, local leagues, or practice sessions.
+CricStatz is an open-source Flutter app to record and track cricket matches played in grounds, local leagues, and practice sessions.
 
-This project is open source and beginner‑friendly. The guide below walks you through **setting up Flutter from scratch**, so anyone can get started and contribute.
+The goal is simple: make scorekeeping fun, reliable, and shareable so everyone can see match and player stats.
 
----
+## Vision
+- Create teams and players
+- Configure matches (10 over, 20 over, custom)
+- Track live scoring ball by ball
+- Show player and team stats over time
 
-## 1. Prerequisites
+## Tech Direction
+- Flutter (mobile app)
+- Provider (state management)
+- Supabase (backend + database)
 
-- **A computer**: Windows, macOS, or Linux
-- **Git** installed  
-  - Download from `https://git-scm.com/downloads`
-- **A code editor** (recommended: Visual Studio Code)  
-  - Download from `https://code.visualstudio.com/`
-
----
-
-## 2. Install Flutter
-
-The official Flutter docs are excellent and always up to date, so **follow them first**, then come back here:
-
-- **Flutter installation guide**: `https://docs.flutter.dev/get-started/install`
-
-Follow the steps for **your OS** (Windows/macOS/Linux). In short, you will:
-
-1. Download the Flutter SDK for your platform.
-2. Add Flutter to your system `PATH`.
-3. Run `flutter doctor` to check for any missing dependencies.
-
-In a terminal (Command Prompt / PowerShell / bash), run:
-
-```bash
-flutter doctor
+## Repository Structure
+```
+CricStatz/
+├── .github/
+│   ├── ISSUE_TEMPLATE/
+│   │   ├── bug_report.md
+│   │   ├── design_proposal.md
+│   │   └── feature_request.md
+│   └── PULL_REQUEST_TEMPLATE.md
+├── design/
+│   ├── assets/
+│   ├── screens/
+│   ├── README.md
+│   └── color-palette.md
+├── docs/
+│   ├── ARCHITECTURE.md
+│   ├── DATABASE_SCHEMA.md
+│   └── SETUP.md
+├── CODE_OF_CONDUCT.md
+├── CONTRIBUTING.md
+├── LICENSE
+├── SECURITY.md
+└── README.md
 ```
 
-Make sure there are **no major issues** (or fix what Flutter suggests in the output).
+## Figma and Design Workflow
+- Primary design source: Figma
+- Store approved exports in `design/screens/` and `design/assets/`
+- Open a Design Proposal issue before large UI changes
 
----
+Add your Figma links in `design/README.md`.
+## Figma
+- Main file link: `https://www.figma.com/design/BeeHZXJXOwpc3qIHxFiQUJ/CRICSTATZ?node-id=139-4519&m=dev&t=3gxyNna0RgE3Pdtq-1`
+- Prototype link: `https://www.figma.com/proto/BeeHZXJXOwpc3qIHxFiQUJ/CRICSTATZ?node-id=139-4519&t=3gxyNna0RgE3Pdtq-1`
 
-## 3. Set up an Editor (VS Code recommended)
-
-If you use **VS Code**:
-
-1. Open VS Code.
-2. Go to **Extensions**.
-3. Install:
-   - **Flutter** extension
-   - **Dart** extension
-
-These will give you code completion, debugging, and Flutter tools directly inside the editor.
-
----
-
-## 4. Clone this Repository
-
-In a terminal, run:
-
+## Quick Start
+1. Install Flutter: `https://docs.flutter.dev/get-started/install`
+2. Clone repository:
 ```bash
 git clone https://github.com/<your-username>/CricStatz.git
 cd CricStatz
 ```
-
-> Replace `<your-username>` with the actual GitHub username or org where this repo lives.
-
----
-
-## 5. Get Flutter Dependencies
-
-Once you are inside the project folder (`CricStatz`), run:
-
+3. Verify Flutter setup:
 ```bash
-flutter pub get
+flutter doctor
 ```
 
-This downloads all required Dart/Flutter packages for the app.
+Flutter app scaffolding will be added in the next implementation step.
 
----
+## Contribution Rules
+- Read `CONTRIBUTING.md` before opening a PR
+- Use issue templates for bug, feature, and design proposals
+- Keep PRs focused and reviewable
+- Never commit secrets or production keys
 
-## 6. Run the App
+## Community Standards
+- Code of conduct: `CODE_OF_CONDUCT.md`
+- Security reporting: `SECURITY.md`
 
-You can run on:
-
-- An **Android emulator** or **physical Android device**
-- An **iOS simulator** or **physical iPhone** (macOS only)
-
-Steps:
-
-1. Make sure a device or emulator is running.
-2. From the project root, run:
-
-```bash
-flutter run
-```
-
-Flutter will build the app and launch it on the connected device/emulator.
-
----
-
-## 7. Contributing
-
-Contributions are welcome! If you are a beginner, don’t worry — this project is meant to be friendly.
-
-**Basic workflow (simple version):**
-
-1. **Fork** the repo on GitHub (this creates your own copy).
-2. **Clone** your fork to your computer.
-3. Make your changes on your fork’s `main` branch.
-4. Run and test the app:
-
-```bash
-flutter run
-```
-
-5. Commit and push your changes to your fork:
-
-```bash
-git add .
-git commit -m "Describe your change"
-git push origin main
-```
-
-6. Open a **Pull Request** from your fork’s `main` to the original repo’s `main`.
-
----
-
-## 8. Project Goals (High Level)
-
-Some ideas for CricStatz:
-
-- **Create teams and players**
-- **Record match scorecards** (runs, wickets, overs, strike rate, economy, etc.)
-- **Store past matches** and view history
-- **Simple charts / stats** for players and teams
-
-This section will evolve as the app grows. Feel free to open issues with ideas or suggestions.
-
----
-
-## 9. Need Help?
-
-If you get stuck:
-
-- Check the Flutter docs: `https://docs.flutter.dev`
-- Open an issue in this repo describing:
-  - Your OS
-  - Flutter version (`flutter --version`)
-  - The command you ran
-  - The error message you see
-
-Happy coding and happy cricket! 🏏
+## License
+This project is licensed under GNU GPL v3. See `LICENSE`.
 
