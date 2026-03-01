@@ -24,6 +24,11 @@ CricStatz/
 │   │   ├── design_proposal.md
 │   │   └── feature_request.md
 │   └── PULL_REQUEST_TEMPLATE.md
+├── app/
+│   ├── lib/
+│   ├── android/
+│   ├── test/
+│   └── pubspec.yaml
 ├── design/
 │   ├── assets/
 │   ├── screens/
@@ -57,12 +62,26 @@ Add your Figma links in `design/README.md`.
 git clone https://github.com/<your-username>/CricStatz.git
 cd CricStatz
 ```
-3. Verify Flutter setup:
+3. Enter app folder and install dependencies:
+```bash
+cd app
+flutter pub get
+```
+4. Verify Flutter setup:
 ```bash
 flutter doctor
 ```
+5. Run app:
+```bash
+flutter run
+```
 
-Flutter app scaffolding will be added in the next implementation step.
+## Figma MCP Workflow (Codex + Figma)
+- Ensure Figma MCP server is installed and connected in your Codex/agent environment.
+- In Figma, right-click a frame and choose `Copy link to selection`.
+- Ask the agent with a prompt like: `help me implement this Figma design in Flutter using existing components where possible`.
+- The agent should call design-context tools to extract layout/style/component details before generating code.
+- Iterate code and design both ways, then update exports in `design/screens/` and `design/assets/`.
 
 ## Contribution Rules
 - Read `CONTRIBUTING.md` before opening a PR

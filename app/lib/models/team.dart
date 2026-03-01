@@ -1,0 +1,25 @@
+class Team {
+  final String id;
+  final String name;
+  final String shortCode;
+
+  const Team({
+    required this.id,
+    required this.name,
+    required this.shortCode,
+  });
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'name': name,
+        'short_code': shortCode,
+      };
+
+  factory Team.fromJson(Map<String, dynamic> json) {
+    return Team(
+      id: json['id'] as String,
+      name: json['name'] as String,
+      shortCode: json['short_code'] as String,
+    );
+  }
+}
