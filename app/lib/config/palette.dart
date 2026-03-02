@@ -20,7 +20,7 @@ class AppPalette {
   static const Color navInactive = Color(0xFF64748B);
 
   static const LinearGradient surfaceGradient = LinearGradient(
-    colors: [Color(0xFF071327), Color(0xFF0A1A36)],
+    colors: [bgPrimary, bgPrimary],
     begin: Alignment.topCenter,
     end: Alignment.bottomCenter,
   );

@@ -337,9 +337,8 @@ class _LiveMatchSection extends StatelessWidget {
               SizedBox(
                 width: double.infinity,
                 child: FilledButton(
-                  onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Scoreboard coming soon')),
-                  ),
+                  onPressed: () =>
+                      Navigator.pushNamed(context, AppRoutes.live),
                   style: FilledButton.styleFrom(
                     backgroundColor: const Color(0xFFF1F5F9),
                     foregroundColor: AppPalette.bgSecondary,

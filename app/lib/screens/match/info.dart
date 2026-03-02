@@ -26,13 +26,15 @@ class MatchInfoScreen extends StatelessWidget {
       body: DecoratedBox(
         decoration: const BoxDecoration(gradient: AppPalette.surfaceGradient),
         child: SafeArea(
-          child: Column(
-            children: [
-              _buildHeader(context),
-              _buildTabs(context),
-              Expanded(
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.only(bottom: 24),
+            child: Column(
+              children: [
+                _buildHeader(context),
+                _buildTabs(context),
+                const SizedBox(height: 16),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
                   child: Column(
                     children: [
                       _buildMatchSummaryCard(context),
@@ -45,8 +47,8 @@ class MatchInfoScreen extends StatelessWidget {
                     ],
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -67,7 +69,11 @@ class MatchInfoScreen extends StatelessWidget {
           child: Row(
             children: [
               IconButton(
-                onPressed: () => Navigator.pop(context),
+                onPressed: () => Navigator.pushNamedAndRemoveUntil(
+                  context,
+                  AppRoutes.home,
+                  (route) => false,
+                ),
                 icon: const Icon(Icons.arrow_back_ios_new,
                     color: AppPalette.textPrimary, size: 20),
                 padding: EdgeInsets.zero,
@@ -129,9 +135,13 @@ class MatchInfoScreen extends StatelessWidget {
               return Expanded(
                 child: InkWell(
                   onTap: () {
-                    // Live screen removed for now.
-                    if (i == 2) {
+                    if (i == selectedIndex) return;
+                    if (i == 1) {
+                      Navigator.pushNamed(context, AppRoutes.live);
+                    } else if (i == 2) {
                       Navigator.pushNamed(context, AppRoutes.scoreboard);
+                    } else if (i == 3) {
+                      Navigator.pushNamed(context, AppRoutes.players);
                     }
                   },
                   child: Container(
@@ -139,8 +149,9 @@ class MatchInfoScreen extends StatelessWidget {
                     decoration: BoxDecoration(
                       border: Border(
                         bottom: BorderSide(
-                          color:
-                              isSelected ? AppPalette.accent : Colors.transparent,
+                          color: isSelected
+                              ? AppPalette.accent
+                              : Colors.transparent,
                           width: 2,
                         ),
                       ),
@@ -257,7 +268,8 @@ class MatchInfoScreen extends StatelessWidget {
                     ),
                     child: const Text(
                       'View Full Scorecard',
-                      style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+                      style:
+                          TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
                     ),
                   ),
                 ),
@@ -347,7 +359,8 @@ class MatchInfoScreen extends StatelessWidget {
                 errorBuilder: (_, __, ___) => Container(
                   color: _cardBorder,
                   alignment: Alignment.center,
-                  child: const Icon(Icons.map_outlined, color: AppPalette.textMuted),
+                  child: const Icon(Icons.map_outlined,
+                      color: AppPalette.textMuted),
                 ),
               ),
             ),
@@ -399,8 +412,8 @@ class MatchInfoScreen extends StatelessWidget {
     return Row(
       children: [
         card(
-          leadingIcon:
-              const Icon(Icons.cloud_outlined, color: AppPalette.textPrimary, size: 20),
+          leadingIcon: const Icon(Icons.cloud_outlined,
+              color: AppPalette.textPrimary, size: 20),
           title: 'Weather',
           body: Column(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -441,8 +454,8 @@ class MatchInfoScreen extends StatelessWidget {
         ),
         const SizedBox(width: 16),
         card(
-          leadingIcon:
-              const Icon(Icons.sports_cricket_outlined, color: AppPalette.textPrimary, size: 20),
+          leadingIcon: const Icon(Icons.sports_cricket_outlined,
+              color: AppPalette.textPrimary, size: 20),
           title: 'Pitch',
           body: Column(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -588,8 +601,7 @@ class MatchInfoScreen extends StatelessWidget {
                 ],
               ),
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
                   color: _cardBorder,
                   borderRadius: BorderRadius.circular(4),
@@ -708,4 +720,3 @@ class MatchInfoScreen extends StatelessWidget {
     );
   }
 }
-

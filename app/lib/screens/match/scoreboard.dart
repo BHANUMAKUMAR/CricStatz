@@ -27,13 +27,15 @@ class _MatchScoreboardScreenState extends State<MatchScoreboardScreen> {
       body: DecoratedBox(
         decoration: const BoxDecoration(gradient: AppPalette.surfaceGradient),
         child: SafeArea(
-          child: Column(
-            children: [
-              _TopBar(),
-              const _Tabs(selectedIndex: 2),
-              Expanded(
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.only(bottom: 24),
+            child: Column(
+              children: [
+                _TopBar(),
+                const _Tabs(selectedIndex: 2),
+                const SizedBox(height: 16),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
                   child: Column(
                     children: [
                       const _InningsSummaryBar(),
@@ -65,8 +67,8 @@ class _MatchScoreboardScreenState extends State<MatchScoreboardScreen> {
                     ],
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -90,7 +92,11 @@ class _TopBar extends StatelessWidget {
           child: Row(
             children: [
               IconButton(
-                onPressed: () => Navigator.pop(context),
+                onPressed: () => Navigator.pushNamedAndRemoveUntil(
+                  context,
+                  AppRoutes.home,
+                  (route) => false,
+                ),
                 icon: const Icon(Icons.arrow_back_ios_new,
                     color: AppPalette.textPrimary, size: 20),
                 padding: EdgeInsets.zero,
@@ -161,8 +167,7 @@ class _Tabs extends StatelessWidget {
                     if (i == 0) {
                       Navigator.pushNamed(context, AppRoutes.info);
                     } else if (i == 1) {
-                      Navigator.pushNamed(
-                          context, AppRoutes.matchDetailsLive);
+                      Navigator.pushNamed(context, AppRoutes.live);
                     } else if (i == 2) {
                       // Already on scorecard (this screen).
                     } else if (i == 3) {

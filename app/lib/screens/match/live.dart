@@ -1,0 +1,982 @@
+import 'dart:ui';
+
+import 'package:cricstatz/config/palette.dart';
+import 'package:cricstatz/config/assets.dart';
+import 'package:cricstatz/config/routes.dart';
+import 'package:flutter/material.dart';
+
+// ─── Color Constants ───────────────────────────────────────────────────────────
+class AppColors {
+  static const primary = AppPalette.bgPrimary;
+  static const accent = Color(0xFF00C2FF);
+  static const cardDark = Color(0xFF111827);
+  static const textMain = Color(0xFFEAF2FF);
+  static const white10 = Color(0x1AFFFFFF);
+  static const white5 = Color(0x0DFFFFFF);
+  static const white60 = Color(0x99FFFFFF);
+  static const white80 = Color(0xCCFFFFFF);
+  static const slate400 = Color(0xFF94A3B8);
+  static const slate500 = Color(0xFF64748B);
+  static const slate700 = Color(0xFF334155);
+  static const slate800 = Color(0xFF1E293B);
+}
+
+// ─── Main Screen ───────────────────────────────────────────────────────────────
+class LiveMatchScreen extends StatelessWidget {
+  const LiveMatchScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppColors.primary,
+      body: SafeArea(
+        child: Stack(
+          children: [
+            SingleChildScrollView(
+              padding: const EdgeInsets.only(bottom: 24),
+              child: Column(
+                children: [
+                  _buildHeader(context),
+                  _buildTabs(context),
+                  const SizedBox(height: 16),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: Column(
+                      children: const [
+                        _ScoreBanner(),
+                        _LiveContent(),
+                        SizedBox(height: 100),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const _FloatingActionBtn(),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Match top bar identical to `info.dart` navbar style.
+  Widget _buildHeader(BuildContext context) {
+    return ClipRect(
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 6, sigmaY: 6),
+        child: Container(
+          height: 72,
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+          decoration: const BoxDecoration(
+            color: Color(0xF20A1F43),
+            border: Border(bottom: BorderSide(color: Color(0x1AFFFFFF))),
+          ),
+          child: Row(
+            children: [
+              IconButton(
+                onPressed: () => Navigator.pushNamedAndRemoveUntil(
+                  context,
+                  AppRoutes.home,
+                  (route) => false,
+                ),
+                icon: const Icon(
+                  Icons.arrow_back_ios_new,
+                  color: AppPalette.textPrimary,
+                  size: 20,
+                ),
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+              ),
+              Expanded(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      'IND vs AUS, Final',
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                            color: AppPalette.textPrimary,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 18,
+                          ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'ODI World Cup 2023',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: const Color(0xFFCBD5E1),
+                            fontWeight: FontWeight.w500,
+                          ),
+                    ),
+                  ],
+                ),
+              ),
+              IconButton(
+                onPressed: () {},
+                icon: const Icon(
+                  Icons.share_outlined,
+                  color: AppPalette.textPrimary,
+                  size: 20,
+                ),
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Tabs row identical to `info.dart` but with LIVE selected.
+  Widget _buildTabs(BuildContext context) {
+    const tabs = ['INFO', 'LIVE', 'SCORECARD', 'PLAYERS'];
+    const selectedIndex = 1;
+
+    return ClipRect(
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 6, sigmaY: 6),
+        child: Container(
+          height: 51,
+          decoration: const BoxDecoration(
+            color: Color(0xF20A1F43),
+            border: Border(bottom: BorderSide(color: Color(0x1AFFFFFF))),
+          ),
+          child: Row(
+            children: List.generate(tabs.length, (i) {
+              final isSelected = i == selectedIndex;
+              return Expanded(
+                child: InkWell(
+                  onTap: () {
+                    if (i == selectedIndex) return;
+                    if (i == 0) {
+                      Navigator.pushNamed(context, AppRoutes.info);
+                    } else if (i == 2) {
+                      Navigator.pushNamed(context, AppRoutes.scoreboard);
+                    } else if (i == 3) {
+                      Navigator.pushNamed(context, AppRoutes.players);
+                    }
+                  },
+                  child: Container(
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      border: Border(
+                        bottom: BorderSide(
+                          color: isSelected
+                              ? AppPalette.accent
+                              : Colors.transparent,
+                          width: 2,
+                        ),
+                      ),
+                    ),
+                    padding: const EdgeInsets.symmetric(vertical: 15),
+                    child: Text(
+                      tabs[i],
+                      style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                            color: isSelected
+                                ? AppPalette.accent
+                                : AppPalette.textMuted,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 12,
+                            letterSpacing: 0.6,
+                          ),
+                    ),
+                  ),
+                ),
+              );
+            }),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ─── Score Banner ──────────────────────────────────────────────────────────────
+class _ScoreBanner extends StatelessWidget {
+  const _ScoreBanner();
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.all(16),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              colors: [Color(0xFF0A1F44), Color(0xFF111827)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            border: Border.all(color: AppColors.white5),
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.4),
+                blurRadius: 24,
+                spreadRadius: 2,
+              )
+            ],
+          ),
+          child: Stack(
+            children: [
+              // Overlay target graphic (iconb.png) similar to design.
+              Positioned(
+                top: 30,
+                right: 10,
+                child: Opacity(
+                  opacity: 0.40,
+                  child: Image.asset(
+                    AppAssets.iconTarget,
+                    width: 60,
+                    height: 60,
+                    fit: BoxFit.contain,
+                  ),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  children: [
+                    // Top section: score + live badge
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Left: India score
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'INDIA INNINGS',
+                              style: TextStyle(
+                                color: AppColors.accent,
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: 1.8,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            const Text(
+                              '284/4',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 40,
+                                fontWeight: FontWeight.w900,
+                                height: 1.1,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            RichText(
+                              text: const TextSpan(
+                                style: TextStyle(
+                                    color: AppColors.white80, fontSize: 13),
+                                children: [
+                                  TextSpan(text: 'Overs: 42.3'),
+                                  TextSpan(
+                                      text: '  •  ',
+                                      style:
+                                          TextStyle(color: AppColors.white60)),
+                                  TextSpan(text: 'CRR: 6.68'),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                        // Right: live badge + target
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            // LIVE badge with pulse dot
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 8, vertical: 3),
+                              decoration: BoxDecoration(
+                                color: Colors.red.shade600,
+                                borderRadius: BorderRadius.circular(50),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  _PulseDot(),
+                                  const SizedBox(width: 4),
+                                  const Text(
+                                    'LIVE',
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            const Text(
+                              'Target: 320',
+                              style: TextStyle(
+                                  color: AppColors.white60, fontSize: 12),
+                            ),
+                            const SizedBox(height: 4),
+                            const Text(
+                              'India needs 36 runs in 45 balls',
+                              textAlign: TextAlign.right,
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                                fontStyle: FontStyle.italic,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    // Divider
+                    const Divider(color: AppColors.white10, height: 1),
+                    const SizedBox(height: 16),
+                    // Bottom: Australia score + required rate
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: const [
+                              Text(
+                                'AUSTRALIA (1ST INNINGS)',
+                                style: TextStyle(
+                                  color: AppColors.white60,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w700,
+                                  letterSpacing: 0.8,
+                                ),
+                              ),
+                              SizedBox(height: 4),
+                              Text(
+                                '319/10 (50.0)',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 14,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Container(
+                            width: 1, height: 32, color: AppColors.white10),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: const [
+                              Text(
+                                'REQUIRED RATE',
+                                style: TextStyle(
+                                  color: AppColors.white60,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w700,
+                                  letterSpacing: 0.8,
+                                ),
+                              ),
+                              SizedBox(height: 4),
+                              Text(
+                                '4.80',
+                                style: TextStyle(
+                                  color: AppColors.accent,
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 14,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ─── Pulse Dot (animated) ──────────────────────────────────────────────────────
+class _PulseDot extends StatefulWidget {
+  @override
+  State<_PulseDot> createState() => _PulseDotState();
+}
+
+class _PulseDotState extends State<_PulseDot>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _ctrl;
+  late Animation<double> _anim;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+        vsync: this, duration: const Duration(milliseconds: 900))
+      ..repeat(reverse: true);
+    _anim = Tween<double>(begin: 0.3, end: 1.0).animate(_ctrl);
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FadeTransition(
+      opacity: _anim,
+      child: Container(
+        width: 6,
+        height: 6,
+        decoration:
+            const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
+      ),
+    );
+  }
+}
+
+// ─── Live Content ──────────────────────────────────────────────────────────────
+class _LiveContent extends StatelessWidget {
+  const _LiveContent();
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: const [
+          _PartnershipCard(),
+          SizedBox(height: 16),
+          _MiniScorecards(),
+          SizedBox(height: 16),
+          _BowlerCard(),
+          SizedBox(height: 16),
+          _RecentBalls(),
+        ],
+      ),
+    );
+  }
+}
+
+// ─── Partnership Card ──────────────────────────────────────────────────────────
+class _PartnershipCard extends StatelessWidget {
+  const _PartnershipCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.cardDark,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.white5),
+      ),
+      child: Column(
+        children: [
+          const Text(
+            'CURRENT PARTNERSHIP',
+            style: TextStyle(
+              color: AppColors.slate400,
+              fontSize: 10,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 1.8,
+            ),
+          ),
+          const SizedBox(height: 6),
+          RichText(
+            text: const TextSpan(
+              children: [
+                TextSpan(
+                  text: '45 ',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 20,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                TextSpan(
+                  text: '(32 balls)',
+                  style: TextStyle(
+                    color: AppColors.slate400,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w400,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─── Mini Scorecards ───────────────────────────────────────────────────────────
+class _MiniScorecards extends StatelessWidget {
+  const _MiniScorecards();
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: const [
+        Expanded(
+          child: _BatsmanCard(
+            name: 'V. Kohli*',
+            runs: '82',
+            balls: '54',
+            fours: 6,
+            sixes: 2,
+            sr: '151.8',
+            active: true,
+          ),
+        ),
+        SizedBox(width: 16),
+        Expanded(
+          child: _BatsmanCard(
+            name: 'KL Rahul',
+            runs: '14',
+            balls: '12',
+            fours: 1,
+            sixes: 0,
+            sr: '116.6',
+            active: false,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _BatsmanCard extends StatelessWidget {
+  final String name;
+  final String runs;
+  final String balls;
+  final int fours;
+  final int sixes;
+  final String sr;
+  final bool active;
+
+  const _BatsmanCard({
+    required this.name,
+    required this.runs,
+    required this.balls,
+    required this.fours,
+    required this.sixes,
+    required this.sr,
+    required this.active,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.cardDark,
+        borderRadius: BorderRadius.circular(12),
+        border: active
+            ? const Border(
+                left: BorderSide(color: AppColors.accent, width: 4),
+                top: BorderSide(color: AppColors.white5),
+                right: BorderSide(color: AppColors.white5),
+                bottom: BorderSide(color: AppColors.white5),
+              )
+            : Border.all(color: AppColors.white5),
+        boxShadow: active
+            ? [
+                BoxShadow(
+                  color: AppColors.accent.withOpacity(0.1),
+                  blurRadius: 12,
+                  spreadRadius: 1,
+                )
+              ]
+            : null,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                name,
+                style: TextStyle(
+                  color: active ? Colors.white : const Color(0xFFCBD5E1),
+                  fontWeight: FontWeight.w700,
+                  fontSize: 14,
+                ),
+              ),
+              if (active)
+                const Icon(Icons.stars_rounded,
+                    color: AppColors.accent, size: 18),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.baseline,
+            textBaseline: TextBaseline.alphabetic,
+            children: [
+              Text(
+                runs,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 26,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+              const SizedBox(width: 4),
+              Text(
+                '($balls)',
+                style: const TextStyle(color: AppColors.slate400, fontSize: 13),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              _StatChip(label: '4s: $fours'),
+              const SizedBox(width: 8),
+              _StatChip(label: '6s: $sixes'),
+              const SizedBox(width: 8),
+              _StatChip(label: 'SR: $sr'),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _StatChip extends StatelessWidget {
+  final String label;
+  const _StatChip({required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      label,
+      style: const TextStyle(
+        color: AppColors.slate400,
+        fontSize: 10,
+        fontWeight: FontWeight.w700,
+      ),
+    );
+  }
+}
+
+// ─── Bowler Card ───────────────────────────────────────────────────────────────
+class _BowlerCard extends StatelessWidget {
+  const _BowlerCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.cardDark,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.white5),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Row(
+            children: [
+              // Avatar placeholder
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: AppColors.slate700,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: AppColors.white10),
+                ),
+                child: const Icon(Icons.person_outline,
+                    color: AppColors.white60, size: 22),
+              ),
+              const SizedBox(width: 12),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: const [
+                  Text(
+                    'M. Starc',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 14,
+                    ),
+                  ),
+                  SizedBox(height: 2),
+                  Text(
+                    '8.3 - 0 - 52 - 2',
+                    style: TextStyle(
+                      color: AppColors.slate400,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              const Text(
+                'THIS OVER',
+                style: TextStyle(
+                  color: AppColors.accent,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 0.8,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Row(
+                children: ['1', '4', '0']
+                    .map((ball) => Padding(
+                          padding: const EdgeInsets.only(left: 4),
+                          child: _BallChip(label: ball, isHighlight: false),
+                        ))
+                    .toList(),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _BallChip extends StatelessWidget {
+  final String label;
+  final bool isHighlight;
+  const _BallChip({required this.label, required this.isHighlight});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 20,
+      height: 20,
+      decoration: BoxDecoration(
+        color: isHighlight ? AppColors.accent : AppColors.slate800,
+        shape: BoxShape.circle,
+      ),
+      child: Center(
+        child: Text(
+          label,
+          style: TextStyle(
+            color: isHighlight ? AppColors.primary : Colors.white,
+            fontSize: 10,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ─── Recent Balls ──────────────────────────────────────────────────────────────
+class _RecentBalls extends StatelessWidget {
+  const _RecentBalls();
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Padding(
+          padding: EdgeInsets.only(left: 4, bottom: 12),
+          child: Text(
+            'RECENT BALLS',
+            style: TextStyle(
+              color: AppColors.slate400,
+              fontSize: 10,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 1.8,
+            ),
+          ),
+        ),
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            children: [
+              _OverRow(
+                overLabel: 'Ov 42',
+                balls: const [
+                  _BallData('1', BallType.normal),
+                  _BallData('2', BallType.normal),
+                  _BallData('4', BallType.boundary),
+                  _BallData('W', BallType.wicket),
+                  _BallData('0', BallType.normal),
+                  _BallData('1', BallType.normal),
+                ],
+                faded: false,
+              ),
+              const SizedBox(width: 8),
+              _OverRow(
+                overLabel: 'Ov 41',
+                balls: const [
+                  _BallData('0', BallType.normal),
+                  _BallData('1lb', BallType.normal),
+                  _BallData('6', BallType.boundary),
+                  _BallData('1', BallType.normal),
+                  _BallData('1', BallType.normal),
+                  _BallData('2', BallType.normal),
+                ],
+                faded: true,
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+enum BallType { normal, boundary, wicket }
+
+class _BallData {
+  final String label;
+  final BallType type;
+  const _BallData(this.label, this.type);
+}
+
+class _OverRow extends StatelessWidget {
+  final String overLabel;
+  final List<_BallData> balls;
+  final bool faded;
+
+  const _OverRow({
+    required this.overLabel,
+    required this.balls,
+    required this.faded,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Opacity(
+      opacity: faded ? 0.6 : 1.0,
+      child: Container(
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.05),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Row(
+          children: [
+            // Rotated over label
+            RotatedBox(
+              quarterTurns: 3,
+              child: Text(
+                overLabel,
+                style: const TextStyle(
+                  color: AppColors.slate500,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Row(
+              children: balls.map((ball) {
+                Color bgColor;
+                Color textColor;
+
+                switch (ball.type) {
+                  case BallType.boundary:
+                    bgColor = AppColors.accent;
+                    textColor = AppColors.primary;
+                    break;
+                  case BallType.wicket:
+                    bgColor = Colors.red.shade500;
+                    textColor = Colors.white;
+                    break;
+                  case BallType.normal:
+                    bgColor = AppColors.slate800;
+                    textColor = Colors.white;
+                    break;
+                }
+
+                return Padding(
+                  padding: const EdgeInsets.only(left: 6),
+                  child: Container(
+                    width: 32,
+                    height: 32,
+                    decoration: BoxDecoration(
+                      color: bgColor,
+                      shape: BoxShape.circle,
+                      border: ball.type == BallType.normal
+                          ? Border.all(color: AppColors.white10)
+                          : null,
+                    ),
+                    child: Center(
+                      child: Text(
+                        ball.label,
+                        style: TextStyle(
+                          color: textColor,
+                          fontSize: ball.label.length > 1 ? 8 : 13,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  ),
+                );
+              }).toList(),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ─── Floating Action Button ────────────────────────────────────────────────────
+class _FloatingActionBtn extends StatelessWidget {
+  const _FloatingActionBtn();
+
+  @override
+  Widget build(BuildContext context) {
+    return Positioned(
+      bottom: 24,
+      right: 24,
+      child: GestureDetector(
+        onTap: () {},
+        child: AnimatedScale(
+          scale: 1.0,
+          duration: const Duration(milliseconds: 150),
+          child: Container(
+            width: 56,
+            height: 56,
+            decoration: BoxDecoration(
+              color: AppColors.accent,
+              shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: AppColors.accent.withOpacity(0.45),
+                  blurRadius: 24,
+                  spreadRadius: 2,
+                ),
+              ],
+            ),
+            child: const Icon(
+              Icons.trending_up,
+              color: AppColors.primary,
+              size: 28,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}

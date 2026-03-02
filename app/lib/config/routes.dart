@@ -1,7 +1,7 @@
 import 'package:cricstatz/screens/home/home_screen.dart';
 import 'package:cricstatz/screens/match/info.dart';
+import 'package:cricstatz/screens/match/live.dart';
 import 'package:cricstatz/screens/match/players.dart';
-import 'package:cricstatz/screens/match/matchdetailslive.dart';
 import 'package:cricstatz/screens/match/scoreboard.dart';
 import 'package:cricstatz/screens/match/toss_screen.dart';
 import 'package:cricstatz/screens/match/upcoming_fixtures_screen.dart';
@@ -15,7 +15,7 @@ class AppRoutes {
   static const String toss = '/matches/toss';
   static const String upcoming = '/matches/upcoming';
   static const String info = '/matches/info';
-  static const String matchDetailsLive = '/matches/matchdetailslive';
+  static const String live = '/matches/live';
   static const String scoreboard = '/matches/scoreboard';
   static const String players = '/matches/players';
   static const String results = '/results';
@@ -25,7 +25,7 @@ class AppRoutes {
         toss: (_) => const TossScreen(),
         upcoming: (_) => const UpcomingFixturesScreen(),
         info: (_) => const MatchInfoScreen(),
-        matchDetailsLive: (_) => const MatchDetailsLiveScreen(),
+        live: (_) => const LiveMatchScreen(),
         scoreboard: (_) => const MatchScoreboardScreen(),
         players: (_) => const MatchPlayersScreen(),
         results: (_) => const ResultsScreen(),

@@ -4,7 +4,7 @@ import 'package:cricstatz/config/palette.dart';
 import 'package:cricstatz/config/routes.dart';
 import 'package:flutter/material.dart';
 
-const Color _playersBg = Color(0xFF070D19);
+const Color _playersBg = AppPalette.bgPrimary;
 const Color _playersStroke = Color(0xFF1E293B);
 const Color _playersSegBg = Color(0xFF1E293B);
 
@@ -46,26 +46,20 @@ class _MatchPlayersScreenState extends State<MatchPlayersScreen> {
     return Scaffold(
       backgroundColor: _bg,
       body: SafeArea(
-        child: Column(
-          children: [
-            _buildTopBar(context),
-            _buildTabs(context),
-            Expanded(
-              child: SingleChildScrollView(
-                child: Column(
-                  children: [
-                    const SizedBox(height: 16),
-                    _buildTeamSelector(context),
-                    const SizedBox(height: 16),
-                    _buildPlayingXIHeader(context),
-                    _buildPlayersList(context),
-                    const SizedBox(height: 24),
-                    _buildBenchSection(context),
-                  ],
-                ),
-              ),
-            ),
-          ],
+        child: SingleChildScrollView(
+          child: Column(
+            children: [
+              _buildTopBar(context),
+              _buildTabs(context),
+              const SizedBox(height: 16),
+              _buildTeamSelector(context),
+              const SizedBox(height: 16),
+              _buildPlayingXIHeader(context),
+              _buildPlayersList(context),
+              const SizedBox(height: 24),
+              _buildBenchSection(context),
+            ],
+          ),
         ),
       ),
     );
@@ -86,7 +80,11 @@ class _MatchPlayersScreenState extends State<MatchPlayersScreen> {
           child: Row(
             children: [
               IconButton(
-                onPressed: () => Navigator.pop(context),
+                onPressed: () => Navigator.pushNamedAndRemoveUntil(
+                  context,
+                  AppRoutes.home,
+                  (route) => false,
+                ),
                 icon: const Icon(Icons.arrow_back_ios_new,
                     color: AppPalette.textPrimary, size: 20),
                 padding: EdgeInsets.zero,
@@ -148,8 +146,11 @@ class _MatchPlayersScreenState extends State<MatchPlayersScreen> {
               return Expanded(
                 child: InkWell(
                   onTap: () {
+                    if (i == selectedIndex) return;
                     if (i == 0) {
                       Navigator.pushNamed(context, AppRoutes.info);
+                    } else if (i == 1) {
+                      Navigator.pushNamed(context, AppRoutes.live);
                     } else if (i == 2) {
                       Navigator.pushNamed(context, AppRoutes.scoreboard);
                     }
@@ -159,8 +160,9 @@ class _MatchPlayersScreenState extends State<MatchPlayersScreen> {
                     decoration: BoxDecoration(
                       border: Border(
                         bottom: BorderSide(
-                          color:
-                              isSelected ? AppPalette.accent : Colors.transparent,
+                          color: isSelected
+                              ? AppPalette.accent
+                              : Colors.transparent,
                           width: 2,
                         ),
                       ),
@@ -636,4 +638,3 @@ class _BenchRow extends StatelessWidget {
     );
   }
 }
-

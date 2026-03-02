@@ -19,6 +19,7 @@ class AppAssets {
   static const String logo = '$iconsPath/logo.png';
   static const String iconCal = '$iconsPath/cal.png';
   static const String iconFil = '$iconsPath/fil.png';
+  static const String iconTarget = '$iconsPath/iconb.png';
 
   const AppAssets._();
 }
