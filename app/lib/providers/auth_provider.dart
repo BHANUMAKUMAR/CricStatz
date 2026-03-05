@@ -134,6 +134,22 @@ class AuthProvider extends ChangeNotifier with WidgetsBindingObserver {
     await SupabaseService.signInWithGoogle();
   }
 
+  Future<void> signInWithEmail(String email, String password) async {
+    try {
+      await SupabaseService.signInWithEmail(email, password);
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<void> signUpWithEmail(String email, String password) async {
+    try {
+      await SupabaseService.signUpWithEmail(email, password);
+    } catch (e) {
+      rethrow;
+    }
+  }
+
   Future<void> signOut() async {
     await SupabaseService.signOut();
     _profile = null;
