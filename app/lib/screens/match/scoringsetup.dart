@@ -25,6 +25,8 @@ class ScoringSetupScreen extends StatefulWidget {
   final String format;
   final DateTime? date;
   final int overs;
+  final List<String> teamASquadIds;
+  final List<String> teamBSquadIds;
 
   const ScoringSetupScreen({
     super.key,
@@ -34,6 +36,8 @@ class ScoringSetupScreen extends StatefulWidget {
     required this.format,
     this.date,
     required this.overs,
+    required this.teamASquadIds,
+    required this.teamBSquadIds,
   });
 
   @override
@@ -118,6 +122,8 @@ class _ScoringSetupScreenState extends State<ScoringSetupScreen> with SingleTick
         matchFormat: widget.format,
         matchDate: widget.date,
         oversLimit: widget.overs,
+        teamASquad: widget.teamASquadIds,
+        teamBSquad: widget.teamBSquadIds,
       );
     } catch (e) {
       if (!mounted) return;

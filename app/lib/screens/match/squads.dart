@@ -133,6 +133,13 @@ class _SquadsScreenState extends State<SquadsScreen>
 
   void _onSave() {
     HapticFeedback.mediumImpact();
+
+    // Collect selected player IDs for both teams
+    final selectedTeamAIds =
+        teamA.where((p) => p.isSelected).map((p) => p.id).toList();
+    final selectedTeamBIds =
+        teamB.where((p) => p.isSelected).map((p) => p.id).toList();
+
     Navigator.push(
       context,
       PageRouteBuilder(
@@ -143,6 +150,8 @@ class _SquadsScreenState extends State<SquadsScreen>
           format: widget.format,
           date: widget.date,
           overs: widget.overs,
+          teamASquadIds: selectedTeamAIds,
+          teamBSquadIds: selectedTeamBIds,
         ),
         transitionsBuilder: (context, animation, secondaryAnimation, child) {
           const curve = Curves.easeOutCubic;
