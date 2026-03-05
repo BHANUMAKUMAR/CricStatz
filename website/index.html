@@ -21,7 +21,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap"
     rel="stylesheet" />
 
-  <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="styles.css?v=3" />
 </head>
 
 <body>
@@ -34,6 +34,7 @@
       <li><a href="#about">About</a></li>
       <li><a href="#features">Features</a></li>
       <li><a href="#download">Download</a></li>
+      <li><a href="#contact">Contact</a></li>
     </ul>
   </nav>
 
@@ -160,7 +161,7 @@
             <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
           </svg>
         </div>
-        <h3 class="feature-card-title">Team Chats</h3>
+        <h3 class="feature-card-title">Chats</h3>
         <p class="feature-card-desc">
           Coordinate with your team in real time. Discuss strategy,
           share updates, and stay connected during matches.
@@ -190,15 +191,64 @@
     </p>
   </section>
 
-  <!-- ═══ Section 5: Footer ═══ -->
+  <!-- ═══ Section 5: Contact ═══ -->
+  <section class="section contact-section" id="contact">
+    <div class="section-label reveal">Get In Touch</div>
+    <h2 class="section-title reveal">
+      We'd love to <span>hear from you</span>
+    </h2>
+    <div class="contact-container reveal stagger">
+      <div class="contact-info">
+        <h3>Connect with us</h3>
+        <p>Have questions, feedback, or need support? Reach out to us through any of these channels.</p>
+        <div class="contact-links">
+          <a href="mailto:support@cricstatz.com" class="contact-method">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+              stroke-linecap="round" stroke-linejoin="round">
+              <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
+              <polyline points="22,6 12,13 2,6"></polyline>
+            </svg>
+            support@cricstatz.com
+          </a>
+        </div>
+      </div>
+      <form class="contact-form">
+        <div class="form-group">
+          <label for="name">Name</label>
+          <input type="text" id="name" placeholder="John Doe" required />
+        </div>
+        <div class="form-group">
+          <label for="email">Email</label>
+          <input type="email" id="email" placeholder="john@example.com" required />
+        </div>
+        <div class="form-group">
+          <label for="message">Message</label>
+          <textarea id="message" rows="4" placeholder="How can we help you?" required></textarea>
+        </div>
+        <button type="submit" class="btn-submit">Send Message</button>
+      </form>
+    </div>
+  </section>
+
+  <!-- ═══ Section 6: Footer ═══ -->
   <footer class="section footer" id="footer">
     <div class="footer-inner">
       <img src="icons/icons/logo.png" alt="CricStatz" class="footer-logo" />
       <p class="footer-text">© 2026 CricStatz. Open-source cricket scoring.</p>
       <ul class="footer-links">
-        <li><a href="https://github.com" target="_blank" rel="noopener">GitHub</a></li>
-        <li><a href="#features">Features</a></li>
-        <li><a href="#download">Download</a></li>
+        <li>
+        <li>
+          <a href="https://github.com/jaideep-05/CricStatz" target="_blank" rel="noopener"
+            style="display: inline-flex; align-items: center; gap: 8px;">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+              stroke-linecap="round" stroke-linejoin="round">
+              <path
+                d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22">
+              </path>
+            </svg>
+            GitHub
+          </a>
+        </li>
       </ul>
     </div>
   </footer>
@@ -208,20 +258,50 @@
     <!-- Dark backdrop -->
     <div class="cricket-backdrop"></div>
     <!-- Batsman with swing motion using appicon.png -->
-    <img src="icons/icons/appicon.png" alt="" class="cricket-batsman" />
+    <img src="icons/icons/appicon.png" alt="" class="cricket-batsman" id="cricketBatsman" />
     <!-- The cricket ball that gets hit -->
-    <div class="cricket-ball"></div>
-    <!-- Red impact flash that fills screen when ball "hits" user -->
+    <div class="cricket-ball" id="cricketBall"></div>
+    <!-- White flash on impact -->
     <div class="ball-impact"></div>
-    <!-- Crack overlay to simulate screen crack on impact -->
-    <div class="impact-ring"></div>
+    <!-- Screen crack SVG overlay -->
+    <div class="screen-crack" id="screenCrack">
+      <svg viewBox="0 0 100 100" preserveAspectRatio="none" width="100%" height="100%">
+        <!-- Impact point at center -->
+        <circle cx="50" cy="50" r="2" fill="rgba(255,255,255,0.9)" class="crack-center" />
+        <!-- Main radial cracks -->
+        <line x1="50" y1="50" x2="12" y2="5" class="crack-line cl-1" />
+        <line x1="50" y1="50" x2="88" y2="8" class="crack-line cl-2" />
+        <line x1="50" y1="50" x2="95" y2="45" class="crack-line cl-3" />
+        <line x1="50" y1="50" x2="90" y2="85" class="crack-line cl-4" />
+        <line x1="50" y1="50" x2="55" y2="98" class="crack-line cl-5" />
+        <line x1="50" y1="50" x2="8" y2="90" class="crack-line cl-6" />
+        <line x1="50" y1="50" x2="3" y2="50" class="crack-line cl-7" />
+        <line x1="50" y1="50" x2="30" y2="2" class="crack-line cl-8" />
+        <line x1="50" y1="50" x2="70" y2="95" class="crack-line cl-9" />
+        <line x1="50" y1="50" x2="98" y2="65" class="crack-line cl-10" />
+        <!-- Branch cracks -->
+        <line x1="30" y1="27" x2="22" y2="18" class="crack-line crack-branch cb-1" />
+        <line x1="70" y1="30" x2="78" y2="22" class="crack-line crack-branch cb-2" />
+        <line x1="75" y1="48" x2="85" y2="38" class="crack-line crack-branch cb-3" />
+        <line x1="72" y1="68" x2="82" y2="72" class="crack-line crack-branch cb-4" />
+        <line x1="52" y1="75" x2="45" y2="85" class="crack-line crack-branch cb-5" />
+        <line x1="28" y1="70" x2="18" y2="78" class="crack-line crack-branch cb-6" />
+        <line x1="25" y1="50" x2="15" y2="42" class="crack-line crack-branch cb-7" />
+        <line x1="38" y1="15" x2="42" y2="8" class="crack-line crack-branch cb-8" />
+        <line x1="60" y1="75" x2="68" y2="82" class="crack-line crack-branch cb-9" />
+        <line x1="80" y1="55" x2="92" y2="58" class="crack-line crack-branch cb-10" />
+        <!-- Concentric impact rings -->
+        <circle cx="50" cy="50" r="8" class="crack-ring ring-1" />
+        <circle cx="50" cy="50" r="18" class="crack-ring ring-2" />
+      </svg>
+    </div>
   </div>
 
   <!-- Hidden download link -->
   <a href="/downloads/CricStatz-latest.apk" id="hiddenDownload" download="CricStatz-latest.apk"
     style="display:none;"></a>
 
-  <script src="script.js"></script>
+  <script src="script.js?v=3"></script>
 </body>
 
 </html>

@@ -35,6 +35,20 @@ class SupabaseService {
     );
   }
 
+  static Future<AuthResponse> signInWithEmail(String email, String password) async {
+    return await client.auth.signInWithPassword(
+      email: email,
+      password: password,
+    );
+  }
+
+  static Future<AuthResponse> signUpWithEmail(String email, String password) async {
+    return await client.auth.signUp(
+      email: email,
+      password: password,
+    );
+  }
+
   static Future<void> signOut() async {
     await client.auth.signOut();
   }

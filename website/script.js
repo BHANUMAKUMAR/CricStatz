@@ -46,35 +46,56 @@ document.addEventListener("DOMContentLoaded", () => {
 
   sections.forEach((section) => navObserver.observe(section));
 
-  // ── 3. Cricket Ball Download Animation ──────────────────
+  // ── 3. Cricket Download Animation (Multi-phase) ─────────
   const downloadBtn = document.getElementById("downloadBtn");
   const overlay = document.getElementById("cricketOverlay");
   const hiddenLink = document.getElementById("hiddenDownload");
+  const batsman = document.getElementById("cricketBatsman");
+  const ball = document.getElementById("cricketBall");
 
   let animating = false;
+
+  // Helper: force animation restart on an element by cloning it
+  function restartAnimation(el) {
+    const clone = el.cloneNode(true);
+    el.parentNode.replaceChild(clone, el);
+    return clone;
+  }
 
   downloadBtn.addEventListener("click", () => {
     if (animating) return;
     animating = true;
 
-    // Step 1: Show overlay with dark backdrop + batsman swing
+    // Reset: remove all state classes
+    overlay.classList.remove("active", "swung", "impact");
+
+    // Force a reflow so the browser registers the removal
+    void overlay.offsetWidth;
+
+    // Phase 1: Dark backdrop + batsman enters from left (0 → 0.5s)
     overlay.classList.add("active");
 
-    // Step 2: After batsman appears and swings (0.5s), 
-    // the ball starts flying (handled by CSS delay).
-    // At ~1.1s the ball "hits" the user — trigger the impact flash
+    // Phase 2: Bat swing (at 0.55s the bat connects)
+    setTimeout(() => {
+      overlay.classList.add("swung");
+    }, 550);
+
+    // Phase 3: Ball launches from bat toward user (CSS: 0.6s delay on .active)
+    // Ball scales up and flies at the screen over 0.7s
+
+    // Phase 4: Ball "hits" the screen — white flash + screen crack (at 1.3s)
     setTimeout(() => {
       overlay.classList.add("impact");
-    }, 1100);
+    }, 1300);
 
-    // Step 3: Clean up and trigger download after animation completes
+    // Phase 5: Hold the cracked screen, then clean up + trigger download
     setTimeout(() => {
-      overlay.classList.remove("active", "impact");
+      overlay.classList.remove("active", "swung", "impact");
       animating = false;
 
       // Trigger actual download
       hiddenLink.click();
-    }, 2000);
+    }, 3200);
   });
 
   // ── 4. Navbar background on scroll ──────────────────────
