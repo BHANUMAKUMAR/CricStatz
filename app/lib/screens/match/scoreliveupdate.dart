@@ -26,14 +26,14 @@ class _ScoreLiveUpdateScreenState extends State<ScoreLiveUpdateScreen> {
   String? _bowlingTeamId;
   List<Player> _battingTeamPlayers = [];
   List<Player> _bowlingTeamPlayers = [];
-  bool _playersLoaded = false;  // Track if players have been fetched
-  String? _fetchError;           // Holds an error message if fetch fails
-  
+  bool _playersLoaded = false; // Track if players have been fetched
+  String? _fetchError; // Holds an error message if fetch fails
+
   // Current match state - track actual batsmen and bowler
   int _strikerIndex = 0;
   int _nonStrikerIndex = 1;
   int _bowlerIndex = -1;
-  
+
   // Scoring state
   int _runs = 0;
   int _wickets = 0;
@@ -44,39 +44,52 @@ class _ScoreLiveUpdateScreenState extends State<ScoreLiveUpdateScreen> {
   int _legalBallsBowled = 0;
   int _partnershipRuns = 0;
   int _partnershipBalls = 0;
-  
+
   // Per-player stats tracking
   final Map<String, Map<String, dynamic>> _playerStats = {};
-  
+
   // History for Undo
   final List<Map<String, dynamic>> _history = [];
   int _innings = 1;
-  int _firstInningsRuns = 0;  // Track 1st innings total
+  int _firstInningsRuns = 0; // Track 1st innings total
   int _target = 0;
   bool _isTransitionInProgress = false;
   bool _isBowlerPickerVisible = false;
   bool _bowlerPickerForce = false;
+  bool _hasEnsuredLiveStatus = false;
+  bool _hasInitializedSession = false;
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    final args = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
+    if (_hasInitializedSession) return;
+    final args =
+        ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
     if (args != null) {
+      _hasInitializedSession = true;
       _match = args['match'] as Match?;
       _tossWinner = (args['tossWinner'] as String?) ?? _match?.tossWinner;
-      _decision = ((args['decision'] as String?) ?? _match?.tossDecision)?.toUpperCase();
-      
+      _decision = ((args['decision'] as String?) ?? _match?.tossDecision)
+          ?.toUpperCase();
+
       debugPrint('=== Match Started ===');
       debugPrint('Toss Winner: $_tossWinner');
       debugPrint('Decision: $_decision');
-      
+
       if (_match != null) {
+        if (!_hasEnsuredLiveStatus) {
+          _hasEnsuredLiveStatus = true;
+          MatchService.ensureMatchLive(_match!.id).catchError((e) {
+            debugPrint('Failed to ensure live status: $e');
+          });
+        }
+
         _oversLimit = _match!.oversLimit;
         _teamA = _match!.teamAId;
         _teamB = _match!.teamBId;
         debugPrint('Team A ID: $_teamA');
         debugPrint('Team B ID: $_teamB');
-        
+
         if (_battingTeamName == null) {
           final teamA = _teamA!;
           final teamB = _teamB!;
@@ -84,9 +97,9 @@ class _ScoreLiveUpdateScreenState extends State<ScoreLiveUpdateScreen> {
           _battingTeamName = isBatDecision
               ? _tossWinner
               : (_tossWinner == teamA ? teamB : teamA);
-          
+
           debugPrint('Batting Team Name: $_battingTeamName');
-          
+
           // Determine batting and bowling team IDs
           // _tossWinner should be a team ID for this logic to work
           if (isBatDecision) {
@@ -100,16 +113,18 @@ class _ScoreLiveUpdateScreenState extends State<ScoreLiveUpdateScreen> {
             _bowlingTeamId = _tossWinner;
             debugPrint('Decision is FIELD - Winner fields');
           }
-          
-          debugPrint('Final - Batting Team ID: $_battingTeamId, Bowling Team ID: $_bowlingTeamId');
-          
-          // Fetch batting team players FIRST, then sync score
+
+          debugPrint(
+              'Final - Batting Team ID: $_battingTeamId, Bowling Team ID: $_bowlingTeamId');
+
+          // Fetch batting team players first, then restore existing score.
           _fetchBattingTeamPlayers().then((_) {
             if (mounted && _playersLoaded && _fetchError == null) {
-              debugPrint('✅ Players fetched successfully, now syncing score');
+              debugPrint(
+                  'Players fetched successfully, restoring previous score if available');
               Future.delayed(const Duration(milliseconds: 500), () {
                 if (mounted) {
-                  _syncScore();
+                  _restoreOrInitializeLiveScore();
                 }
               });
             }
@@ -183,7 +198,8 @@ class _ScoreLiveUpdateScreenState extends State<ScoreLiveUpdateScreen> {
     while (nextBatsmanIndex < _battingTeamPlayers.length) {
       final candidate = _battingTeamPlayers[nextBatsmanIndex];
       final isOut = _playerStats[candidate.id]?['out'] ?? false;
-      final inMiddle = nextBatsmanIndex == _strikerIndex || nextBatsmanIndex == _nonStrikerIndex;
+      final inMiddle = nextBatsmanIndex == _strikerIndex ||
+          nextBatsmanIndex == _nonStrikerIndex;
       if (!isOut && !inMiddle) {
         if (dismissedIndex == _strikerIndex) {
           _strikerIndex = nextBatsmanIndex;
@@ -223,7 +239,9 @@ class _ScoreLiveUpdateScreenState extends State<ScoreLiveUpdateScreen> {
 
     final crr = _calculateCurrentRunRate();
     final reqRate = _calculateRequiredRunRate();
-    final ballsRemaining = _oversLimit > 0 ? ((_oversLimit * 6) - _legalBallsBowled).clamp(0, 9999) : 0;
+    final ballsRemaining = _oversLimit > 0
+        ? ((_oversLimit * 6) - _legalBallsBowled).clamp(0, 9999)
+        : 0;
     final runsRemaining = (_target - _runs).clamp(0, 9999);
 
     final summary = ScoreSummary(
@@ -236,15 +254,15 @@ class _ScoreLiveUpdateScreenState extends State<ScoreLiveUpdateScreen> {
       reqRate: _innings == 2 ? reqRate.toStringAsFixed(2) : null,
       summaryText: _innings == 2 && _target > 0
           ? (_runs >= _target
-                ? 'Target achieved'
-                : 'Need $runsRemaining from $ballsRemaining balls')
+              ? 'Target achieved'
+              : 'Need $runsRemaining from $ballsRemaining balls')
           : null,
       battingTeam: _battingTeamName ?? 'Batting Team',
     );
 
     // Build batsman list with proper indices
     final batsmen = <BatsmanScore>[];
-    
+
     if (_strikerIndex >= 0 && _strikerIndex < _battingTeamPlayers.length) {
       final striker = _battingTeamPlayers[_strikerIndex];
       final strikerStats = _playerStats[striker.id] ?? {};
@@ -260,8 +278,9 @@ class _ScoreLiveUpdateScreenState extends State<ScoreLiveUpdateScreen> {
         ),
       );
     }
-    
-    if (_nonStrikerIndex >= 0 && _nonStrikerIndex < _battingTeamPlayers.length) {
+
+    if (_nonStrikerIndex >= 0 &&
+        _nonStrikerIndex < _battingTeamPlayers.length) {
       final nonStriker = _battingTeamPlayers[_nonStrikerIndex];
       final nonStrikerStats = _playerStats[nonStriker.id] ?? {};
       batsmen.add(
@@ -288,23 +307,23 @@ class _ScoreLiveUpdateScreenState extends State<ScoreLiveUpdateScreen> {
       econ: '0.0',
       currentOverBalls: List<String>.from(_currentOverBalls),
     );
-    
+
     if (currentBowler != null) {
       final bowlerPlayer = currentBowler;
       final bowlerStats = _playerStats[bowlerPlayer.id] ?? {};
       final ballsBowled = (bowlerStats['balls_bowled'] ?? 0) as int;
       final runsConceded = (bowlerStats['runs'] ?? 0) as int;
-      
+
       // Convert balls bowled to overs format
       final overs = ballsBowled ~/ 6;
       final balls = ballsBowled % 6;
       final oversStr = '$overs.$balls';
-      
+
       // Calculate economy rate
-      final econ = ballsBowled > 0 
+      final econ = ballsBowled > 0
           ? (runsConceded / (ballsBowled / 6.0)).toStringAsFixed(2)
           : '0.0';
-      
+
       bowler = BowlerScore(
         name: bowlerPlayer.name,
         overs: oversStr,
@@ -332,11 +351,133 @@ class _ScoreLiveUpdateScreenState extends State<ScoreLiveUpdateScreen> {
     }
   }
 
+  Future<void> _restoreOrInitializeLiveScore() async {
+    final restored = await _restoreExistingLiveScore();
+    if (!restored) {
+      await _syncScore();
+    }
+  }
+
+  int _parseIntSafe(dynamic value) {
+    if (value == null) return 0;
+    return int.tryParse(value.toString()) ?? 0;
+  }
+
+  int _ballsFromOversString(String overs) {
+    final parts = overs.split('.');
+    if (parts.isEmpty) return 0;
+    final completedOvers = int.tryParse(parts[0]) ?? 0;
+    final ballsInCurrentOver =
+        parts.length > 1 ? (int.tryParse(parts[1]) ?? 0) : 0;
+    return (completedOvers * 6) + ballsInCurrentOver.clamp(0, 5);
+  }
+
+  int _playerIndexByName(List<Player> players, String name) {
+    final normalized = name.trim().toLowerCase();
+    if (normalized.isEmpty) return -1;
+    for (var i = 0; i < players.length; i++) {
+      if (players[i].name.trim().toLowerCase() == normalized) return i;
+    }
+    return -1;
+  }
+
+  Future<bool> _restoreExistingLiveScore() async {
+    if (_match == null) return false;
+
+    try {
+      final stats = await MatchService.getLiveScore(_match!.id);
+      final summary = stats['summary'] as ScoreSummary?;
+      if (summary == null) return false;
+
+      final batsmen = (stats['batsmen'] as List<dynamic>? ?? <dynamic>[])
+          .whereType<BatsmanScore>()
+          .toList();
+      final bowler = stats['bowler'] as BowlerScore?;
+      final partnership = stats['partnership'] as Partnership?;
+
+      final restoredRuns = _parseIntSafe(summary.runs);
+      final restoredWickets = _parseIntSafe(summary.wickets);
+      final restoredBalls = _ballsFromOversString(summary.overs);
+      final restoredTarget = _parseIntSafe(summary.target);
+      final restoredInnings =
+          summary.inningsName.toLowerCase().contains('2nd') ? 2 : 1;
+
+      setState(() {
+        _runs = restoredRuns;
+        _wickets = restoredWickets;
+        _legalBallsBowled = restoredBalls;
+        _updateOversFromBalls();
+        _target = restoredTarget;
+        _innings = restoredInnings;
+        _firstInningsRuns =
+            restoredTarget > 0 ? restoredTarget - 1 : _firstInningsRuns;
+        _battingTeamName = summary.battingTeam ?? _battingTeamName;
+        _partnershipRuns = _parseIntSafe(partnership?.runs);
+        _partnershipBalls = _parseIntSafe(partnership?.balls);
+
+        _currentOverBalls
+          ..clear()
+          ..addAll(
+              (bowler?.currentOverBalls ?? const <String>[]).cast<String>());
+        _recentBalls
+          ..clear()
+          ..addAll(_currentOverBalls.reversed.take(6));
+
+        for (final b in batsmen) {
+          final index = _playerIndexByName(_battingTeamPlayers, b.name);
+          if (index < 0) continue;
+          final playerId = _battingTeamPlayers[index].id;
+          _playerStats[playerId] = {
+            ...(_playerStats[playerId] ?? <String, dynamic>{}),
+            'runs': _parseIntSafe(b.runs),
+            'balls': _parseIntSafe(b.balls),
+            'fours': b.fours,
+            'sixes': b.sixes,
+            'sr': b.sr,
+          };
+          if (b.isActive == true) {
+            _strikerIndex = index;
+          } else if (_nonStrikerIndex == _strikerIndex ||
+              _nonStrikerIndex == 1) {
+            _nonStrikerIndex = index;
+          }
+        }
+
+        if (_nonStrikerIndex == _strikerIndex &&
+            _battingTeamPlayers.length > 1) {
+          _nonStrikerIndex = _strikerIndex == 0 ? 1 : 0;
+        }
+
+        if (bowler != null) {
+          final bowlerIndex =
+              _playerIndexByName(_bowlingTeamPlayers, bowler.name);
+          if (bowlerIndex >= 0) {
+            _bowlerIndex = bowlerIndex;
+            final bowlerId = _bowlingTeamPlayers[bowlerIndex].id;
+            _playerStats[bowlerId] = {
+              ...(_playerStats[bowlerId] ?? <String, dynamic>{}),
+              'runs': _parseIntSafe(bowler.runs),
+              'wickets': _parseIntSafe(bowler.wickets),
+              'balls_bowled': _ballsFromOversString(bowler.overs),
+              'economy': bowler.econ,
+            };
+          }
+        }
+      });
+
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
   Future<void> _fetchBattingTeamPlayers() async {
     debugPrint('=== _fetchBattingTeamPlayers START ===');
-    debugPrint('_battingTeamId: $_battingTeamId (type: ${_battingTeamId.runtimeType})');
-    debugPrint('_bowlingTeamId: $_bowlingTeamId (type: ${_bowlingTeamId.runtimeType})');
-    
+    debugPrint(
+        '_battingTeamId: $_battingTeamId (type: ${_battingTeamId.runtimeType})');
+    debugPrint(
+        '_bowlingTeamId: $_bowlingTeamId (type: ${_bowlingTeamId.runtimeType})');
+
     if (_battingTeamId == null || _bowlingTeamId == null) {
       debugPrint('❌ ERROR: Team IDs are null, returning early');
       debugPrint('  _battingTeamId: $_battingTeamId');
@@ -349,7 +490,7 @@ class _ScoreLiveUpdateScreenState extends State<ScoreLiveUpdateScreen> {
       }
       return;
     }
-    
+
     if (_battingTeamId!.isEmpty || _bowlingTeamId!.isEmpty) {
       debugPrint('❌ ERROR: Team IDs are empty strings');
       if (mounted) {
@@ -360,7 +501,7 @@ class _ScoreLiveUpdateScreenState extends State<ScoreLiveUpdateScreen> {
       }
       return;
     }
-    
+
     try {
       if (_match == null) {
         throw Exception('Match is missing while loading squads');
@@ -385,18 +526,19 @@ class _ScoreLiveUpdateScreenState extends State<ScoreLiveUpdateScreen> {
       debugPrint('  teamB squad: ${teamBPlayers.length}');
       debugPrint('  batting players: ${battingPlayers.length}');
       debugPrint('  bowling players: ${bowlingPlayers.length}');
-      
+
       if (mounted) {
         setState(() {
           _battingTeamPlayers = battingPlayers;
           _bowlingTeamPlayers = bowlingPlayers;
           _playersLoaded = true;
           _fetchError = null;
-          
-          debugPrint('📊 setState called - Initializing player stats from squads');
+
+          debugPrint(
+              '📊 setState called - Initializing player stats from squads');
           debugPrint('  Batting squad: ${battingPlayers.length} players');
           debugPrint('  Bowling squad: ${bowlingPlayers.length} players');
-          
+
           // Initialize player stats for batting team
           for (final player in battingPlayers) {
             if (!_playerStats.containsKey(player.id)) {
@@ -408,10 +550,11 @@ class _ScoreLiveUpdateScreenState extends State<ScoreLiveUpdateScreen> {
                 'sr': '0.0',
                 'out': false,
               };
-              debugPrint('  ✓ Initialized batsman: ${player.name} (ID: ${player.id})');
+              debugPrint(
+                  '  ✓ Initialized batsman: ${player.name} (ID: ${player.id})');
             }
           }
-          
+
           // Initialize player stats for bowling team
           for (final player in bowlingPlayers) {
             if (!_playerStats.containsKey(player.id)) {
@@ -426,10 +569,11 @@ class _ScoreLiveUpdateScreenState extends State<ScoreLiveUpdateScreen> {
                 'wickets': 0,
                 'economy': '0.0'
               };
-              debugPrint('  ✓ Initialized bowler: ${player.name} (ID: ${player.id})');
+              debugPrint(
+                  '  ✓ Initialized bowler: ${player.name} (ID: ${player.id})');
             }
           }
-          
+
           debugPrint('=== _fetchBattingTeamPlayers COMPLETE ===');
         });
         if (_bowlerIndex < 0 && bowlingPlayers.isNotEmpty) {
@@ -466,9 +610,8 @@ class _ScoreLiveUpdateScreenState extends State<ScoreLiveUpdateScreen> {
       'bowlerIndex': _bowlerIndex,
       'partnershipRuns': _partnershipRuns,
       'partnershipBalls': _partnershipBalls,
-      'playerStats': Map<String, Map<String, dynamic>>.from(
-        _playerStats.map((k, v) => MapEntry(k, Map<String, dynamic>.from(v)))
-      ),
+      'playerStats': Map<String, Map<String, dynamic>>.from(_playerStats
+          .map((k, v) => MapEntry(k, Map<String, dynamic>.from(v)))),
     });
     if (_history.length > 20) _history.removeAt(0);
   }
@@ -484,7 +627,9 @@ class _ScoreLiveUpdateScreenState extends State<ScoreLiveUpdateScreen> {
       _recentBalls.clear();
       _recentBalls.addAll(last['recentBalls'] as List<String>);
       _currentOverBalls.clear();
-      _currentOverBalls.addAll((last['currentOverBalls'] as List<dynamic>? ?? <dynamic>[]).cast<String>());
+      _currentOverBalls.addAll(
+          (last['currentOverBalls'] as List<dynamic>? ?? <dynamic>[])
+              .cast<String>());
       _strikerIndex = last['strikerIndex'] as int;
       _nonStrikerIndex = last['nonStrikerIndex'] as int;
       _bowlerIndex = last['bowlerIndex'] as int;
@@ -493,8 +638,7 @@ class _ScoreLiveUpdateScreenState extends State<ScoreLiveUpdateScreen> {
       _playerStats.clear();
       final stats = last['playerStats'] as Map<String, Map<String, dynamic>>;
       _playerStats.addAll(
-        stats.map((k, v) => MapEntry(k, Map<String, dynamic>.from(v)))
-      );
+          stats.map((k, v) => MapEntry(k, Map<String, dynamic>.from(v))));
     });
     _syncScore();
     HapticFeedback.mediumImpact();
@@ -540,45 +684,74 @@ class _ScoreLiveUpdateScreenState extends State<ScoreLiveUpdateScreen> {
       _currentOverBalls.add(label);
 
       // Update per-player stats (only for legal balls)
-      if (isLegal && _strikerIndex >= 0 && _strikerIndex < _battingTeamPlayers.length) {
+      if (isLegal &&
+          _strikerIndex >= 0 &&
+          _strikerIndex < _battingTeamPlayers.length) {
         final striker = _battingTeamPlayers[_strikerIndex];
         if (!_playerStats.containsKey(striker.id)) {
-          _playerStats[striker.id] = {'runs': 0, 'balls': 0, 'fours': 0, 'sixes': 0, 'sr': '0.0', 'out': false};
+          _playerStats[striker.id] = {
+            'runs': 0,
+            'balls': 0,
+            'fours': 0,
+            'sixes': 0,
+            'sr': '0.0',
+            'out': false
+          };
         }
-        
+
         // Add runs to striker
-        _playerStats[striker.id]!['runs'] = (_playerStats[striker.id]!['runs'] as int) + runDelta;
-        
+        _playerStats[striker.id]!['runs'] =
+            (_playerStats[striker.id]!['runs'] as int) + runDelta;
+
         // Add ball faced
-        _playerStats[striker.id]!['balls'] = (_playerStats[striker.id]!['balls'] as int) + 1;
-        
+        _playerStats[striker.id]!['balls'] =
+            (_playerStats[striker.id]!['balls'] as int) + 1;
+
         // Track fours and sixes
         if (runDelta == 4) {
-          _playerStats[striker.id]!['fours'] = (_playerStats[striker.id]!['fours'] as int) + 1;
+          _playerStats[striker.id]!['fours'] =
+              (_playerStats[striker.id]!['fours'] as int) + 1;
         } else if (runDelta == 6) {
-          _playerStats[striker.id]!['sixes'] = (_playerStats[striker.id]!['sixes'] as int) + 1;
+          _playerStats[striker.id]!['sixes'] =
+              (_playerStats[striker.id]!['sixes'] as int) + 1;
         }
-        
+
         // Calculate strike rate
         final balls = _playerStats[striker.id]!['balls'] as int;
         final runs = _playerStats[striker.id]!['runs'] as int;
         if (balls > 0) {
-          _playerStats[striker.id]!['sr'] = ((runs / balls) * 100).toStringAsFixed(2);
+          _playerStats[striker.id]!['sr'] =
+              ((runs / balls) * 100).toStringAsFixed(2);
         }
 
         _partnershipBalls += 1;
       }
-      
+
       // Update bowler stats
-      if (isLegal && _bowlerIndex >= 0 && _bowlerIndex < _bowlingTeamPlayers.length) {
+      if (isLegal &&
+          _bowlerIndex >= 0 &&
+          _bowlerIndex < _bowlingTeamPlayers.length) {
         final bowler = _bowlingTeamPlayers[_bowlerIndex];
         if (!_playerStats.containsKey(bowler.id)) {
-          _playerStats[bowler.id] = {'runs': 0, 'balls': 0, 'fours': 0, 'sixes': 0, 'sr': '0.0', 'out': false, 'balls_bowled': 0, 'wickets': 0, 'economy': '0.0'};
+          _playerStats[bowler.id] = {
+            'runs': 0,
+            'balls': 0,
+            'fours': 0,
+            'sixes': 0,
+            'sr': '0.0',
+            'out': false,
+            'balls_bowled': 0,
+            'wickets': 0,
+            'economy': '0.0'
+          };
         }
-        _playerStats[bowler.id]!['balls_bowled'] = (_playerStats[bowler.id]!['balls_bowled'] as int) + 1;
-        _playerStats[bowler.id]!['runs'] = (_playerStats[bowler.id]!['runs'] as int) + runDelta;
+        _playerStats[bowler.id]!['balls_bowled'] =
+            (_playerStats[bowler.id]!['balls_bowled'] as int) + 1;
+        _playerStats[bowler.id]!['runs'] =
+            (_playerStats[bowler.id]!['runs'] as int) + runDelta;
         if (isWicket && creditWicketToBowler) {
-          _playerStats[bowler.id]!['wickets'] = (_playerStats[bowler.id]!['wickets'] as int) + 1;
+          _playerStats[bowler.id]!['wickets'] =
+              (_playerStats[bowler.id]!['wickets'] as int) + 1;
         }
       }
 
@@ -589,14 +762,16 @@ class _ScoreLiveUpdateScreenState extends State<ScoreLiveUpdateScreen> {
 
       if (isWicket && dismissedBatsmanIndex != null) {
         final dismissedPlayer = _battingTeamPlayers[dismissedBatsmanIndex];
-        _playerStats.putIfAbsent(dismissedPlayer.id, () => {
-          'runs': 0,
-          'balls': 0,
-          'fours': 0,
-          'sixes': 0,
-          'sr': '0.0',
-          'out': false,
-        });
+        _playerStats.putIfAbsent(
+            dismissedPlayer.id,
+            () => {
+                  'runs': 0,
+                  'balls': 0,
+                  'fours': 0,
+                  'sixes': 0,
+                  'sr': '0.0',
+                  'out': false,
+                });
         _playerStats[dismissedPlayer.id]!['out'] = true;
         _partnershipRuns = 0;
         _partnershipBalls = 0;
@@ -651,17 +826,17 @@ class _ScoreLiveUpdateScreenState extends State<ScoreLiveUpdateScreen> {
       // Save first innings total
       _firstInningsRuns = _runs;
       debugPrint('First innings run saved: $_firstInningsRuns');
-      
+
       _innings = 2;
       // Swap batting side
-      _battingTeamName =
-          _battingTeamName == _teamA ? _teamB : _teamA;
+      _battingTeamName = _battingTeamName == _teamA ? _teamB : _teamA;
       // Swap team IDs
       final temp = _battingTeamId;
       _battingTeamId = _bowlingTeamId;
       _bowlingTeamId = temp;
-      debugPrint('Second innings setup: batting=$_battingTeamId, bowling=$_bowlingTeamId');
-      
+      debugPrint(
+          'Second innings setup: batting=$_battingTeamId, bowling=$_bowlingTeamId');
+
       // Reset scoring state
       _runs = 0;
       _wickets = 0;
@@ -676,7 +851,7 @@ class _ScoreLiveUpdateScreenState extends State<ScoreLiveUpdateScreen> {
       _bowlerIndex = -1;
       _partnershipRuns = 0;
       _partnershipBalls = 0;
-      
+
       // Clear player stats for second innings teams
       _playerStats.clear();
       _playersLoaded = false;
@@ -697,12 +872,11 @@ class _ScoreLiveUpdateScreenState extends State<ScoreLiveUpdateScreen> {
         barrierDismissible: false,
         builder: (context) => AlertDialog(
           backgroundColor: AppPalette.bgSecondary,
-          shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           title: const Text(
             'End 1st Innings?',
-            style: TextStyle(
-                color: Colors.white, fontWeight: FontWeight.bold),
+            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
           ),
           content: const Text(
             'Overs limit reached. Start scoring for the second team?',
@@ -725,13 +899,11 @@ class _ScoreLiveUpdateScreenState extends State<ScoreLiveUpdateScreen> {
                 _startSecondInnings();
                 _isTransitionInProgress = false;
               },
-              style: FilledButton.styleFrom(
-                  backgroundColor: AppPalette.accent),
+              style: FilledButton.styleFrom(backgroundColor: AppPalette.accent),
               child: const Text(
                 'START 2ND INNINGS',
                 style: TextStyle(
-                    color: AppPalette.bgSecondary,
-                    fontWeight: FontWeight.bold),
+                    color: AppPalette.bgSecondary, fontWeight: FontWeight.bold),
               ),
             ),
           ],
@@ -808,9 +980,13 @@ class _ScoreLiveUpdateScreenState extends State<ScoreLiveUpdateScreen> {
             decoration: BoxDecoration(
               color: const Color(0xFF0F172A).withAlpha((0.95 * 255).toInt()),
               borderRadius: BorderRadius.circular(28),
-              border: Border.all(color: AppPalette.live.withAlpha((0.3 * 255).toInt())),
+              border: Border.all(
+                  color: AppPalette.live.withAlpha((0.3 * 255).toInt())),
               boxShadow: [
-                BoxShadow(color: AppPalette.live.withAlpha((0.1 * 255).toInt()), blurRadius: 40, spreadRadius: 10),
+                BoxShadow(
+                    color: AppPalette.live.withAlpha((0.1 * 255).toInt()),
+                    blurRadius: 40,
+                    spreadRadius: 10),
               ],
             ),
             child: Column(
@@ -818,31 +994,54 @@ class _ScoreLiveUpdateScreenState extends State<ScoreLiveUpdateScreen> {
               children: [
                 Container(
                   padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(shape: BoxShape.circle, color: AppPalette.live.withAlpha((0.1 * 255).toInt())),
-                  child: const Icon(Icons.gavel_rounded, color: AppPalette.live, size: 32),
+                  decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: AppPalette.live.withAlpha((0.1 * 255).toInt())),
+                  child: const Icon(Icons.gavel_rounded,
+                      color: AppPalette.live, size: 32),
                 ),
                 const SizedBox(height: 16),
-                const Text('WICKET!', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 28, letterSpacing: 1.5)),
+                const Text('WICKET!',
+                    style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w900,
+                        fontSize: 28,
+                        letterSpacing: 1.5)),
                 const SizedBox(height: 8),
-                const Text('Select Wicket Type', style: TextStyle(color: AppPalette.textMuted, fontSize: 14)),
+                const Text('Select Wicket Type',
+                    style:
+                        TextStyle(color: AppPalette.textMuted, fontSize: 14)),
                 const SizedBox(height: 24),
                 Wrap(
                   spacing: 12,
                   runSpacing: 12,
                   alignment: WrapAlignment.center,
                   children: [
-                    _WicketTypeButton(label: 'Bowled', onTap: () => _confirmWicket('Bowled')),
-                    _WicketTypeButton(label: 'Caught', onTap: () => _confirmWicket('Caught')),
-                    _WicketTypeButton(label: 'LBW', onTap: () => _confirmWicket('LBW')),
-                    _WicketTypeButton(label: 'Run Out', onTap: () => _confirmWicket('Run Out')),
-                    _WicketTypeButton(label: 'Stumped', onTap: () => _confirmWicket('Stumped')),
-                    _WicketTypeButton(label: 'Hit Wicket', onTap: () => _confirmWicket('Hit Wicket')),
+                    _WicketTypeButton(
+                        label: 'Bowled', onTap: () => _confirmWicket('Bowled')),
+                    _WicketTypeButton(
+                        label: 'Caught', onTap: () => _confirmWicket('Caught')),
+                    _WicketTypeButton(
+                        label: 'LBW', onTap: () => _confirmWicket('LBW')),
+                    _WicketTypeButton(
+                        label: 'Run Out',
+                        onTap: () => _confirmWicket('Run Out')),
+                    _WicketTypeButton(
+                        label: 'Stumped',
+                        onTap: () => _confirmWicket('Stumped')),
+                    _WicketTypeButton(
+                        label: 'Hit Wicket',
+                        onTap: () => _confirmWicket('Hit Wicket')),
                   ],
                 ),
                 const SizedBox(height: 24),
                 TextButton(
                   onPressed: () => Navigator.pop(context),
-                  child: const Text('CANCEL', style: TextStyle(color: AppPalette.textMuted, fontWeight: FontWeight.bold, letterSpacing: 1)),
+                  child: const Text('CANCEL',
+                      style: TextStyle(
+                          color: AppPalette.textMuted,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 1)),
                 ),
               ],
             ),
@@ -854,7 +1053,7 @@ class _ScoreLiveUpdateScreenState extends State<ScoreLiveUpdateScreen> {
 
   void _confirmWicket(String type) {
     Navigator.pop(context); // Close type selection
-    
+
     // Step 2: Select which batsman is out
     showDialog(
       context: context,
@@ -867,20 +1066,28 @@ class _ScoreLiveUpdateScreenState extends State<ScoreLiveUpdateScreen> {
             decoration: BoxDecoration(
               color: const Color(0xFF0F172A).withAlpha((0.95 * 255).toInt()),
               borderRadius: BorderRadius.circular(28),
-              border: Border.all(color: AppPalette.accent.withAlpha((0.2 * 255).toInt())),
+              border: Border.all(
+                  color: AppPalette.accent.withAlpha((0.2 * 255).toInt())),
             ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Text('WHO IS OUT?', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18)),
+                const Text('WHO IS OUT?',
+                    style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 18)),
                 const SizedBox(height: 24),
                 if (_fetchError != null)
                   Padding(
                     padding: const EdgeInsets.symmetric(vertical: 16),
                     child: Column(
                       children: [
-                        Text('Error loading players', style: const TextStyle(color: Colors.red)),
-                        Text(_fetchError!, style: const TextStyle(color: AppPalette.textMuted, fontSize: 12)),
+                        Text('Error loading players',
+                            style: const TextStyle(color: Colors.red)),
+                        Text(_fetchError!,
+                            style: const TextStyle(
+                                color: AppPalette.textMuted, fontSize: 12)),
                       ],
                     ),
                   )
@@ -894,16 +1101,22 @@ class _ScoreLiveUpdateScreenState extends State<ScoreLiveUpdateScreen> {
                   )
                 else
                   ...[
-                    if (_strikerIndex >= 0 && _strikerIndex < _battingTeamPlayers.length)
-                      MapEntry(_strikerIndex, _battingTeamPlayers[_strikerIndex]),
-                    if (_nonStrikerIndex >= 0 && _nonStrikerIndex < _battingTeamPlayers.length && _nonStrikerIndex != _strikerIndex)
-                      MapEntry(_nonStrikerIndex, _battingTeamPlayers[_nonStrikerIndex]),
+                    if (_strikerIndex >= 0 &&
+                        _strikerIndex < _battingTeamPlayers.length)
+                      MapEntry(
+                          _strikerIndex, _battingTeamPlayers[_strikerIndex]),
+                    if (_nonStrikerIndex >= 0 &&
+                        _nonStrikerIndex < _battingTeamPlayers.length &&
+                        _nonStrikerIndex != _strikerIndex)
+                      MapEntry(_nonStrikerIndex,
+                          _battingTeamPlayers[_nonStrikerIndex]),
                   ].asMap().entries.map((entry) {
                     final index = entry.value.key;
                     final player = entry.value.value;
                     final initials = player.name
                         .split(' ')
-                        .map((word) => word.isNotEmpty ? word[0].toUpperCase() : '')
+                        .map((word) =>
+                            word.isNotEmpty ? word[0].toUpperCase() : '')
                         .join();
                     final isStriker = index == _strikerIndex;
                     final isLast = entry.key == 1;
@@ -912,7 +1125,9 @@ class _ScoreLiveUpdateScreenState extends State<ScoreLiveUpdateScreen> {
                       children: [
                         ListTile(
                           leading: CircleAvatar(
-                            backgroundColor: isStriker ? AppPalette.accent : AppPalette.textMuted,
+                            backgroundColor: isStriker
+                                ? AppPalette.accent
+                                : AppPalette.textMuted,
                             child: Text(
                               initials,
                               style: const TextStyle(color: Colors.white),
@@ -924,7 +1139,8 @@ class _ScoreLiveUpdateScreenState extends State<ScoreLiveUpdateScreen> {
                           ),
                           onTap: () => _finalizeWicket(type, index),
                         ),
-                        if (!isLast) const Divider(color: AppPalette.cardStroke),
+                        if (!isLast)
+                          const Divider(color: AppPalette.cardStroke),
                       ],
                     );
                   }),
@@ -948,7 +1164,8 @@ class _ScoreLiveUpdateScreenState extends State<ScoreLiveUpdateScreen> {
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('WICKET! - $type (${dismissedPlayer.name})', style: const TextStyle(fontWeight: FontWeight.bold)),
+        content: Text('WICKET! - $type (${dismissedPlayer.name})',
+            style: const TextStyle(fontWeight: FontWeight.bold)),
         backgroundColor: AppPalette.live,
         duration: const Duration(seconds: 1),
       ),
@@ -970,7 +1187,8 @@ class _ScoreLiveUpdateScreenState extends State<ScoreLiveUpdateScreen> {
       body: Stack(
         children: [
           DecoratedBox(
-            decoration: const BoxDecoration(gradient: AppPalette.surfaceGradient),
+            decoration:
+                const BoxDecoration(gradient: AppPalette.surfaceGradient),
             child: SafeArea(
               child: Column(
                 children: [
@@ -1035,7 +1253,8 @@ class _ScoreLiveUpdateScreenState extends State<ScoreLiveUpdateScreen> {
                       height: 280,
                       child: ListView.separated(
                         itemCount: _bowlingTeamPlayers.length,
-                        separatorBuilder: (_, __) => const Divider(color: AppPalette.cardStroke),
+                        separatorBuilder: (_, __) =>
+                            const Divider(color: AppPalette.cardStroke),
                         itemBuilder: (_, index) {
                           final player = _bowlingTeamPlayers[index];
                           return ListTile(
@@ -1089,18 +1308,23 @@ class _ScoreLiveUpdateScreenState extends State<ScoreLiveUpdateScreen> {
         children: [
           IconButton(
             onPressed: () => Navigator.pop(context),
-            icon: const Icon(Icons.arrow_back_ios_new, color: AppPalette.textPrimary, size: 20),
+            icon: const Icon(Icons.arrow_back_ios_new,
+                color: AppPalette.textPrimary, size: 20),
           ),
           Expanded(
             child: Column(
               children: [
                 Text(
                   '$teamA vs $teamB',
-                  style: const TextStyle(color: AppPalette.textPrimary, fontWeight: FontWeight.bold, fontSize: 16),
+                  style: const TextStyle(
+                      color: AppPalette.textPrimary,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16),
                 ),
                 Text(
                   '$battingTeam Batting • $inningsLabel',
-                  style: const TextStyle(color: AppPalette.textMuted, fontSize: 12),
+                  style: const TextStyle(
+                      color: AppPalette.textMuted, fontSize: 12),
                 ),
               ],
             ),
@@ -1117,7 +1341,8 @@ class _ScoreLiveUpdateScreenState extends State<ScoreLiveUpdateScreen> {
       decoration: BoxDecoration(
         color: const Color(0xFF1E293B).withAlpha((0.3 * 255).toInt()),
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: AppPalette.accent.withAlpha((0.2 * 255).toInt())),
+        border:
+            Border.all(color: AppPalette.accent.withAlpha((0.2 * 255).toInt())),
         gradient: LinearGradient(
           colors: [
             AppPalette.accent.withAlpha((0.1 * 255).toInt()),
@@ -1140,11 +1365,19 @@ class _ScoreLiveUpdateScreenState extends State<ScoreLiveUpdateScreen> {
                       children: [
                         TextSpan(
                           text: '$_runs',
-                          style: const TextStyle(color: Colors.white, fontSize: 44, fontWeight: FontWeight.w900, letterSpacing: -1),
+                          style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 44,
+                              fontWeight: FontWeight.w900,
+                              letterSpacing: -1),
                         ),
                         TextSpan(
                           text: '-$_wickets',
-                          style: TextStyle(color: Colors.white.withAlpha((0.6 * 255).toInt()), fontSize: 32, fontWeight: FontWeight.w700),
+                          style: TextStyle(
+                              color:
+                                  Colors.white.withAlpha((0.6 * 255).toInt()),
+                              fontSize: 32,
+                              fontWeight: FontWeight.w700),
                         ),
                       ],
                     ),
@@ -1165,10 +1398,15 @@ class _ScoreLiveUpdateScreenState extends State<ScoreLiveUpdateScreen> {
               Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  const Text('CRR', style: TextStyle(color: AppPalette.textMuted, fontSize: 12)),
+                  const Text('CRR',
+                      style:
+                          TextStyle(color: AppPalette.textMuted, fontSize: 12)),
                   Text(
                     _calculateCurrentRunRate().toStringAsFixed(2),
-                    style: const TextStyle(color: AppPalette.accent, fontSize: 18, fontWeight: FontWeight.bold),
+                    style: const TextStyle(
+                        color: AppPalette.accent,
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold),
                   ),
                 ],
               ),
@@ -1192,9 +1430,11 @@ class _ScoreLiveUpdateScreenState extends State<ScoreLiveUpdateScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text('Failed to load players', style: TextStyle(color: AppPalette.textMuted)),
+            const Text('Failed to load players',
+                style: TextStyle(color: AppPalette.textMuted)),
             const SizedBox(height: 8),
-            Text(_fetchError!, style: const TextStyle(color: Colors.red, fontSize: 12)),
+            Text(_fetchError!,
+                style: const TextStyle(color: Colors.red, fontSize: 12)),
             const SizedBox(height: 12),
             FilledButton(
               onPressed: () {
@@ -1206,7 +1446,7 @@ class _ScoreLiveUpdateScreenState extends State<ScoreLiveUpdateScreen> {
         ),
       );
     }
-    
+
     // Show loading while players are being fetched
     if (!_playersLoaded) {
       return Container(
@@ -1228,7 +1468,7 @@ class _ScoreLiveUpdateScreenState extends State<ScoreLiveUpdateScreen> {
         ),
       );
     }
-    
+
     if (_battingTeamPlayers.isEmpty) {
       return Container(
         padding: const EdgeInsets.all(16),
@@ -1256,12 +1496,14 @@ class _ScoreLiveUpdateScreenState extends State<ScoreLiveUpdateScreen> {
       );
     }
 
-    final striker = _strikerIndex >= 0 && _strikerIndex < _battingTeamPlayers.length
-        ? _battingTeamPlayers[_strikerIndex]
-        : null;
-    final nonStriker = _nonStrikerIndex >= 0 && _nonStrikerIndex < _battingTeamPlayers.length
-        ? _battingTeamPlayers[_nonStrikerIndex]
-        : null;
+    final striker =
+        _strikerIndex >= 0 && _strikerIndex < _battingTeamPlayers.length
+            ? _battingTeamPlayers[_strikerIndex]
+            : null;
+    final nonStriker =
+        _nonStrikerIndex >= 0 && _nonStrikerIndex < _battingTeamPlayers.length
+            ? _battingTeamPlayers[_nonStrikerIndex]
+            : null;
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -1308,9 +1550,11 @@ class _ScoreLiveUpdateScreenState extends State<ScoreLiveUpdateScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text('Failed to load bowlers', style: TextStyle(color: AppPalette.textMuted)),
+            const Text('Failed to load bowlers',
+                style: TextStyle(color: AppPalette.textMuted)),
             const SizedBox(height: 8),
-            Text(_fetchError!, style: const TextStyle(color: Colors.red, fontSize: 12)),
+            Text(_fetchError!,
+                style: const TextStyle(color: Colors.red, fontSize: 12)),
             const SizedBox(height: 12),
             FilledButton(
               onPressed: () {
@@ -1322,7 +1566,7 @@ class _ScoreLiveUpdateScreenState extends State<ScoreLiveUpdateScreen> {
         ),
       );
     }
-    
+
     // Show loading while players are being fetched
     if (!_playersLoaded) {
       return Container(
@@ -1344,7 +1588,7 @@ class _ScoreLiveUpdateScreenState extends State<ScoreLiveUpdateScreen> {
         ),
       );
     }
-    
+
     if (_bowlingTeamPlayers.isEmpty) {
       return Container(
         padding: const EdgeInsets.all(16),
@@ -1372,9 +1616,10 @@ class _ScoreLiveUpdateScreenState extends State<ScoreLiveUpdateScreen> {
       );
     }
 
-    final bowler = _bowlerIndex >= 0 && _bowlerIndex < _bowlingTeamPlayers.length
-        ? _bowlingTeamPlayers[_bowlerIndex]
-        : null;
+    final bowler =
+        _bowlerIndex >= 0 && _bowlerIndex < _bowlingTeamPlayers.length
+            ? _bowlingTeamPlayers[_bowlerIndex]
+            : null;
 
     if (bowler == null) {
       return Container(
@@ -1400,7 +1645,7 @@ class _ScoreLiveUpdateScreenState extends State<ScoreLiveUpdateScreen> {
     final maidens = (bowlerStats['maidens'] ?? 0);
     final runs = (bowlerStats['runs'] ?? 0);
     final wickets = (bowlerStats['wickets'] ?? 0);
-    final econ = ballsBowled > 0 
+    final econ = ballsBowled > 0
         ? (runs / (ballsBowled / 6.0)).toStringAsFixed(2)
         : '0.0';
 
@@ -1432,7 +1677,12 @@ class _ScoreLiveUpdateScreenState extends State<ScoreLiveUpdateScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('RECENT BALLS', style: TextStyle(color: AppPalette.textMuted, fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 1)),
+        const Text('RECENT BALLS',
+            style: TextStyle(
+                color: AppPalette.textMuted,
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+                letterSpacing: 1)),
         const SizedBox(height: 12),
         SingleChildScrollView(
           scrollDirection: Axis.horizontal,
@@ -1451,7 +1701,8 @@ class _ScoreLiveUpdateScreenState extends State<ScoreLiveUpdateScreen> {
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
       decoration: const BoxDecoration(
         color: Color(0xFF0F172A),
-        borderRadius: BorderRadius.only(topLeft: Radius.circular(32), topRight: Radius.circular(32)),
+        borderRadius: BorderRadius.only(
+            topLeft: Radius.circular(32), topRight: Radius.circular(32)),
         border: Border(top: BorderSide(color: AppPalette.cardStroke)),
       ),
       child: Column(
@@ -1477,20 +1728,39 @@ class _ScoreLiveUpdateScreenState extends State<ScoreLiveUpdateScreen> {
                       _KeyButton(label: '1', onTap: () => _addRun(1)),
                       _KeyButton(label: '2', onTap: () => _addRun(2)),
                       _KeyButton(label: '3', onTap: () => _addRun(3)),
-                      _KeyButton(label: '4', onTap: () => _addRun(4), isHighlight: true),
-                      _KeyButton(label: '6', onTap: () => _addRun(6), isHighlight: true),
+                      _KeyButton(
+                          label: '4',
+                          onTap: () => _addRun(4),
+                          isHighlight: true),
+                      _KeyButton(
+                          label: '6',
+                          onTap: () => _addRun(6),
+                          isHighlight: true),
                     ],
                   ),
                   const SizedBox(height: 12),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                     children: [
-                      _KeyButton(label: 'WD', onTap: () => _addExtra('WD'), isSpecial: true),
-                      _KeyButton(label: 'NB', onTap: () => _addExtra('NB'), isSpecial: true),
-                      _KeyButton(label: 'LB', onTap: () => _addExtra('LB'), isSpecial: true),
-                      _KeyButton(label: 'B', onTap: () => _addExtra('B'), isSpecial: true),
+                      _KeyButton(
+                          label: 'WD',
+                          onTap: () => _addExtra('WD'),
+                          isSpecial: true),
+                      _KeyButton(
+                          label: 'NB',
+                          onTap: () => _addExtra('NB'),
+                          isSpecial: true),
+                      _KeyButton(
+                          label: 'LB',
+                          onTap: () => _addExtra('LB'),
+                          isSpecial: true),
+                      _KeyButton(
+                          label: 'B',
+                          onTap: () => _addExtra('B'),
+                          isSpecial: true),
                       _KeyButton(label: 'W', onTap: _onWicket, isAlert: true),
-                      _KeyButton(icon: Icons.undo, onTap: _undo, isSpecial: true),
+                      _KeyButton(
+                          icon: Icons.undo, onTap: _undo, isSpecial: true),
                     ],
                   ),
                 ],
@@ -1504,7 +1774,12 @@ class _ScoreLiveUpdateScreenState extends State<ScoreLiveUpdateScreen> {
 }
 
 class _StatsRow extends StatelessWidget {
-  const _StatsRow({required this.name, required this.runs, required this.balls, required this.sr, required this.isStriker});
+  const _StatsRow(
+      {required this.name,
+      required this.runs,
+      required this.balls,
+      required this.sr,
+      required this.isStriker});
   final String name, runs, balls, sr;
   final bool isStriker;
 
@@ -1515,7 +1790,9 @@ class _StatsRow extends StatelessWidget {
         Expanded(
           child: Text(
             name,
-            style: TextStyle(color: isStriker ? Colors.white : AppPalette.textMuted, fontWeight: isStriker ? FontWeight.bold : FontWeight.normal),
+            style: TextStyle(
+                color: isStriker ? Colors.white : AppPalette.textMuted,
+                fontWeight: isStriker ? FontWeight.bold : FontWeight.normal),
           ),
         ),
         _StatItem(label: 'R', value: runs),
@@ -1537,8 +1814,14 @@ class _StatItem extends StatelessWidget {
       width: width,
       child: Column(
         children: [
-          Text(label, style: const TextStyle(color: AppPalette.textMuted, fontSize: 10)),
-          Text(value, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13)),
+          Text(label,
+              style:
+                  const TextStyle(color: AppPalette.textMuted, fontSize: 10)),
+          Text(value,
+              style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 13)),
         ],
       ),
     );
@@ -1546,14 +1829,16 @@ class _StatItem extends StatelessWidget {
 }
 
 class _BowlerRow extends StatelessWidget {
-  const _BowlerRow({required this.name, required this.figures, required this.econ});
+  const _BowlerRow(
+      {required this.name, required this.figures, required this.econ});
   final String name, figures, econ;
 
   @override
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Expanded(child: Text(name, style: const TextStyle(color: Colors.white))),
+        Expanded(
+            child: Text(name, style: const TextStyle(color: Colors.white))),
         _StatItem(label: 'O-M-R-W', value: figures, width: 80),
         _StatItem(label: 'ECON', value: econ, width: 40),
       ],
@@ -1569,21 +1854,30 @@ class _BallCircle extends StatelessWidget {
   Widget build(BuildContext context) {
     bool isWicket = label == 'W';
     bool isBoundary = label == '4' || label == '6';
-    
+
     return Container(
       margin: const EdgeInsets.only(right: 8),
       width: 32,
       height: 32,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        color: isWicket ? AppPalette.live.withAlpha((0.2 * 255).toInt()) : (isBoundary ? AppPalette.accent.withAlpha((0.2 * 255).toInt()) : AppPalette.bgSecondary),
-        border: Border.all(color: isWicket ? AppPalette.live : (isBoundary ? AppPalette.accent : AppPalette.cardStroke)),
+        color: isWicket
+            ? AppPalette.live.withAlpha((0.2 * 255).toInt())
+            : (isBoundary
+                ? AppPalette.accent.withAlpha((0.2 * 255).toInt())
+                : AppPalette.bgSecondary),
+        border: Border.all(
+            color: isWicket
+                ? AppPalette.live
+                : (isBoundary ? AppPalette.accent : AppPalette.cardStroke)),
       ),
       child: Center(
         child: Text(
           label,
           style: TextStyle(
-            color: isWicket ? AppPalette.live : (isBoundary ? AppPalette.accent : Colors.white),
+            color: isWicket
+                ? AppPalette.live
+                : (isBoundary ? AppPalette.accent : Colors.white),
             fontWeight: FontWeight.bold,
             fontSize: 12,
           ),
@@ -1594,7 +1888,13 @@ class _BallCircle extends StatelessWidget {
 }
 
 class _KeyButton extends StatelessWidget {
-  const _KeyButton({this.label, this.icon, required this.onTap, this.isHighlight = false, this.isSpecial = false, this.isAlert = false});
+  const _KeyButton(
+      {this.label,
+      this.icon,
+      required this.onTap,
+      this.isHighlight = false,
+      this.isSpecial = false,
+      this.isAlert = false});
   final String? label;
   final IconData? icon;
   final VoidCallback onTap;
@@ -1602,7 +1902,11 @@ class _KeyButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    Color bg = isAlert ? AppPalette.live : (isHighlight ? AppPalette.accent : (isSpecial ? const Color(0xFF1E293B) : const Color(0xFF334155)));
+    Color bg = isAlert
+        ? AppPalette.live
+        : (isHighlight
+            ? AppPalette.accent
+            : (isSpecial ? const Color(0xFF1E293B) : const Color(0xFF334155)));
     Color fg = (isHighlight || isAlert) ? AppPalette.bgSecondary : Colors.white;
 
     return GestureDetector(
@@ -1614,13 +1918,18 @@ class _KeyButton extends StatelessWidget {
           color: bg,
           borderRadius: BorderRadius.circular(12),
           boxShadow: [
-            BoxShadow(color: Colors.black.withValues(alpha: 0.2), blurRadius: 4, offset: const Offset(0, 2)),
+            BoxShadow(
+                color: Colors.black.withValues(alpha: 0.2),
+                blurRadius: 4,
+                offset: const Offset(0, 2)),
           ],
         ),
         child: Center(
-          child: icon != null 
-            ? Icon(icon, color: fg, size: 20)
-            : Text(label!, style: TextStyle(color: fg, fontWeight: FontWeight.w900, fontSize: 18)),
+          child: icon != null
+              ? Icon(icon, color: fg, size: 20)
+              : Text(label!,
+                  style: TextStyle(
+                      color: fg, fontWeight: FontWeight.w900, fontSize: 18)),
         ),
       ),
     );
@@ -1643,7 +1952,9 @@ class _WicketTypeButton extends StatelessWidget {
           borderRadius: BorderRadius.circular(12),
           border: Border.all(color: AppPalette.cardStroke),
         ),
-        child: Text(label, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
+        child: Text(label,
+            style: const TextStyle(
+                color: Colors.white, fontWeight: FontWeight.w600)),
       ),
     );
   }
